@@ -25,17 +25,12 @@ import (
 type config struct {
 	Profile           string `yaml:"profile" mapstructure:"profile"`
 	MultipleInstances bool   `yaml:"multiple_instances" mapstructure:"multiple_instances"`
-	Locale            string `yaml:"locale" mapstructure:"locale"`
 	Cleanup           bool   `yaml:"cleanup" mapstructure:"cleanup"`
 }
 
 var (
 	app *portapps.App
 	cfg *config
-)
-
-const (
-	defaultLocale = "en-US"
 )
 
 func init() {
@@ -45,7 +40,6 @@ func init() {
 	cfg = &config{
 		Profile:           "default",
 		MultipleInstances: false,
-		Locale:            defaultLocale,
 		Cleanup:           false,
 	}
 
@@ -59,7 +53,7 @@ func main() {
 	utl.CreateFolder(app.DataPath)
 	profileFolder := utl.CreateFolder(app.DataPath, "profile", cfg.Profile)
 
-	app.Process = utl.PathJoin(app.AppPath, "firefox.exe")
+	app.Process = utl.PathJoin(app.AppPath, "floorp.exe")
 	app.Args = []string{
 		"--profile",
 		profileFolder,
@@ -106,12 +100,6 @@ func main() {
 		}()
 	}
 
-	// Locale
-	locale, err := checkLocale()
-	if err != nil {
-		log.Error().Err(err).Msg("Cannot set locale")
-	}
-
 	// Multiple instances
 	if cfg.MultipleInstances {
 		log.Info().Msg("Multiple instances enabled")
@@ -127,7 +115,6 @@ func main() {
 	prefFolder := utl.CreateFolder(app.AppPath, "defaults/pref")
 	autoconfig := utl.PathJoin(prefFolder, "autoconfig.js")
 	if err := utl.CreateFile(autoconfig, `//
-pref("general.config.filename", "portapps.cfg");
 pref("general.config.obscure_value", 0);`); err != nil {
 		log.Fatal().Err(err).Msg("Cannot write autoconfig.js")
 	}
@@ -138,15 +125,14 @@ pref("general.config.obscure_value", 0);`); err != nil {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Cannot create portapps.cfg")
 	}
+
 	mozillaCfgData := struct {
 		Locale string
 	}{
-		locale,
+		"",
 	}
-	mozillaCfgTpl := template.Must(template.New("mozillaCfg").Parse(`// Set locale
-pref("intl.locale.requested", "{{ .Locale }}");
-
-// Extensions scopes
+	
+	mozillaCfgTpl := template.Must(template.New("mozillaCfg").Parse(`// Extensions scopes
 lockPref("extensions.enabledScopes", 4);
 lockPref("extensions.autoDisableScopes", 3);
 
@@ -239,30 +225,6 @@ func createPolicies() error {
 	}
 
 	return nil
-}
-
-func checkLocale() (string, error) {
-	extSourceFile := fmt.Sprintf("%s.xpi", cfg.Locale)
-	extDestFile := fmt.Sprintf("langpack-%s@firefox.mozilla.org.xpi", cfg.Locale)
-	extsFolder := utl.CreateFolder(app.AppPath, "distribution", "extensions")
-	localeXpi := utl.PathJoin(app.AppPath, "langs", extSourceFile)
-
-	// If default locale skip (already embedded)
-	if cfg.Locale == defaultLocale {
-		return cfg.Locale, nil
-	}
-
-	// Check .xpi file exists
-	if !utl.Exists(localeXpi) {
-		return defaultLocale, fmt.Errorf("XPI file does not exist in %s", localeXpi)
-	}
-
-	// Copy .xpi
-	if err := utl.CopyFile(localeXpi, utl.PathJoin(extsFolder, extDestFile)); err != nil {
-		return defaultLocale, err
-	}
-
-	return cfg.Locale, nil
 }
 
 func updateAddonStartup(profileFolder string) error {

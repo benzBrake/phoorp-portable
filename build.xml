@@ -32,15 +32,6 @@
     <move todir="${extract.path}">
       <fileset dir="${tmp.path}\extract2" defaultexcludes="no"/>
     </move>
-
-    <echo message="Downloading additional languages..."/>
-    <property name="papp.languages.path" location="${extract.path}\langs"/>
-    <mkdir dir="${papp.languages.path}"/>
-    <for list="${papp.languages}" param="lang">
-      <sequential>
-        <get dest="${papp.languages.path}\@{lang}.xpi" src="https://ftp.mozilla.org/pub/firefox/releases/${app.version}/${atf.arch}/xpi/@{lang}.xpi" skipexisting="true"/>
-      </sequential>
-    </for>
   </target>
 
 </project>
